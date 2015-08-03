@@ -109,6 +109,9 @@ public class MongodbServiceProvider
 	
 	private InvitationModel convert(Document doc)
 	{
+		if (doc == null) {
+			return null;
+		}
 		InvitationModel _model = new InvitationModel();
 		_model.setId(doc.getObjectId("_id").toString());
 		_model.setFirstName(doc.getString("firstName"));
