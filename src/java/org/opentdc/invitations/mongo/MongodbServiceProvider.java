@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
@@ -35,6 +36,7 @@ import javax.servlet.ServletContext;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.opentdc.mongo.AbstractMongodbServiceProvider;
+import org.opentdc.events.EventModel;
 import org.opentdc.invitations.InvitationModel;
 import org.opentdc.invitations.InvitationState;
 import org.opentdc.invitations.SalutationType;
@@ -61,6 +63,7 @@ public class MongodbServiceProvider
 	private static final Logger logger = Logger.getLogger(MongodbServiceProvider.class.getName());
 	private EmailSender emailSender = null;
 	private static final String SUBJECT = "Einladung zum Arbalo Launch Event";
+	private ServletContext context = null;
 
 	/**
 	 * Constructor.
@@ -72,6 +75,7 @@ public class MongodbServiceProvider
 		String prefix) 
 	{
 		super(context);
+		this.context = context;
 		connect();
 		collectionName = prefix;
 		getCollection(collectionName);
@@ -149,10 +153,16 @@ public class MongodbServiceProvider
 		InvitationModel model) 
 	throws DuplicateException, ValidationException {
 		logger.info("create(" + PrettyPrinter.prettyPrintAsJSON(model) + ")");
-		if (model.getId() != null && !model.getId().isEmpty()) {
-			throw new ValidationException("invitation <" + model.getId() + "> contains an id generated on the client.");
+		if (model.getId() == null || model.getId().isEmpty()) {
+			model.setId(new ObjectId().toString());			
 		}
-		model.setId(new ObjectId().toString());
+		else {		// id set
+			if (convert(readOne(model.getId())) == null) {
+				throw new ValidationException("invitation <" + model.getId() + "> contains an id generated on the client.");	
+			} else { 		// object with same id exists already
+				throw new DuplicateException("invitation <" + model.getId() + "> exists already.");
+			}
+		}
 		// enforce mandatory fields
 		if (model.getFirstName() == null || model.getFirstName().length() == 0) {
 			throw new ValidationException("invitation must contain a valid firstName.");
@@ -422,5 +432,100 @@ public class MongodbServiceProvider
 		_invitation.setModifiedBy(getPrincipal());
 		update(id, convert(_invitation, true));
 		logger.info("deregister(" + id + ", " + comment + ") -> " + PrettyPrinter.prettyPrintAsJSON(_invitation));
+	}
+	
+	private InvitationState convertInvitationState(org.opentdc.events.InvitationState estate) {
+		InvitationState _istate = null;
+		switch (estate) {
+		case INITIAL: _istate =  InvitationState.INITIAL; break;
+		case SENT: _istate =  InvitationState.SENT; break;
+		case REGISTERED: _istate =  InvitationState.REGISTERED; break; 
+		case EXCUSED: _istate =  InvitationState.EXCUSED; break;
+		default: _istate =  InvitationState.INITIAL; break;
+		}
+		return _istate;
+	}
+	
+	private SalutationType convertSalutationType(org.opentdc.events.SalutationType esal) {
+		SalutationType _isal = null;
+		switch (esal) {
+		case HERR: _isal = SalutationType.HERR; break;
+		case FRAU: _isal = SalutationType.FRAU; break;
+		case DU_M: _isal = SalutationType.DU_M; break;
+		case DU_F: _isal = SalutationType.DU_F; break;
+		default: _isal = SalutationType.HERR; break;
+		}
+		return _isal;
+	}
+
+	/* (non-Javadoc)
+	 * @see org.opentdc.invitations.ServiceProvider#migrate()
+	 */
+	@Override
+	public void migrate() 
+			throws InternalServerErrorException {
+		org.opentdc.events.mongo.MongodbServiceProvider _sp = 
+				new org.opentdc.events.mongo.MongodbServiceProvider(context, "EventsService");
+		InvitationModel _invitationModel = null;
+		for (EventModel _emodel : _sp.list(null, null, 0, 0)) {
+			_invitationModel = new InvitationModel();
+			_invitationModel.setId(_emodel.getId());
+			_invitationModel.setFirstName(_emodel.getFirstName());
+			_invitationModel.setLastName(_emodel.getLastName());
+			_invitationModel.setEmail(_emodel.getEmail());
+			_invitationModel.setComment(_emodel.getComment());
+			// internalComment only exists in InvitationModel, not in EventsModel -> null
+			_invitationModel.setContact(_emodel.getContact());
+			_invitationModel.setSalutation(convertSalutationType(_emodel.getSalutation()));
+			_invitationModel.setInvitationState(convertInvitationState(_emodel.getInvitationState()));			
+			_invitationModel.setCreatedAt(_emodel.getCreatedAt());
+			_invitationModel.setCreatedBy(_emodel.getCreatedBy());
+			_invitationModel.setModifiedAt(new Date());
+			_invitationModel.setModifiedBy(getPrincipal());
+			create(convert(_invitationModel, true));
+			logger.info("create(" + PrettyPrinter.prettyPrintAsJSON(_invitationModel) + ")");
+
+		}
+		
+	}
+
+	/* (non-Javadoc)
+	 * @see org.opentdc.invitations.ServiceProvider#statistics()
+	 */
+	@Override
+	public Properties statistics() {
+		int _countEntries = 0;
+		int _countInitial = 0;
+		int _countSent = 0;
+		int _countRegistered = 0;
+		int _countExcused = 0;
+		int _countComments = 0;
+		int _countInternalComments = 0;
+		InvitationModel _model = null;
+		for (Document doc : list(0, 0)) {
+			_model = convert(doc);
+			_countEntries++;
+			switch(_model.getInvitationState()) {
+				case INITIAL:	_countInitial++; break;
+				case SENT:		_countSent++; break;
+				case REGISTERED: _countRegistered++; break;
+				case EXCUSED:	_countExcused++; break;
+			}
+			if (_model.getComment() != null && ! _model.getComment().isEmpty()) {
+				_countComments++;
+			}
+			if (_model.getInternalComment() != null && ! _model.getInternalComment().isEmpty()) {
+				_countInternalComments++;
+			}
+		}
+		Properties _data = new Properties();
+		_data.setProperty("entries", new Integer(_countEntries).toString());
+		_data.setProperty("initial", new Integer(_countInitial).toString());
+		_data.setProperty("sent", new Integer(_countSent).toString());
+		_data.setProperty("registered", new Integer(_countRegistered).toString());
+		_data.setProperty("excused", new Integer(_countExcused).toString());
+		_data.setProperty("comments", new Integer(_countComments).toString());
+		_data.setProperty("internalComments", new Integer(_countInternalComments).toString());
+		return _data;
 	}
 }

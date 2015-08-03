@@ -14,6 +14,8 @@
 		<fileset dir="../${java.build.platform}/services-generic/lib/" includes="*.jar" />
 		<fileset dir="../${java.build.platform}/services-mongo/lib/" includes="*.jar" />
 		<fileset dir="../${java.build.platform}/invitations-service/lib/" includes="*.jar" />
+		<fileset dir="../${java.build.platform}/events-service/lib/" includes="*.jar" />
+		<fileset dir="../${java.build.platform}/events-service-mongo/lib/" includes="*.jar" />
 		<fileset dir="../opt/google/${java.build.platform}/gson/lib/" includes="*.jar" />
 		<fileset dir="../opt/mongodb/${java.build.platform}/mongo-java-driver/lib/" includes="*.jar" />
 		<fileset dir="../opt/freemarker/${java.build.platform}/freemarker-2.3.23" includes="*.jar" />		
