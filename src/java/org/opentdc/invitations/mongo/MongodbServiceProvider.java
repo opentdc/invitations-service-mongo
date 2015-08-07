@@ -23,24 +23,26 @@
  */
 package org.opentdc.invitations.mongo;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+// import java.util.Properties;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.opentdc.mongo.AbstractMongodbServiceProvider;
-import org.opentdc.events.EventModel;
 import org.opentdc.invitations.InvitationModel;
 import org.opentdc.invitations.InvitationState;
 import org.opentdc.invitations.SalutationType;
 import org.opentdc.invitations.ServiceProvider;
+// import org.opentdc.service.PropertiesModel;
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
 import org.opentdc.service.exception.NotFoundException;
@@ -63,7 +65,6 @@ public class MongodbServiceProvider
 	private static final Logger logger = Logger.getLogger(MongodbServiceProvider.class.getName());
 	private EmailSender emailSender = null;
 	private static final String SUBJECT = "Einladung zum Arbalo Launch Event";
-	private ServletContext context = null;
 
 	/**
 	 * Constructor.
@@ -75,10 +76,11 @@ public class MongodbServiceProvider
 		String prefix) 
 	{
 		super(context);
-		this.context = context;
 		connect();
-		collectionName = prefix;
-		getCollection(collectionName);
+		// collectionName = prefix; 
+		// temporary as long as we have data in EventsService
+		// collectionName = "EventsService"; 
+		getCollection("EventsService");
 		new FreeMarkerConfig(context);
 		emailSender = new EmailSender(context);
 		logger.info("MongodbServiceProvider(context, " + prefix + ") -> OK");
@@ -90,6 +92,7 @@ public class MongodbServiceProvider
 			.append("lastName", model.getLastName())
 			.append("email", model.getEmail())
 			.append("comment", model.getComment())
+			.append("internalComment", model.getInternalComment())
 			.append("contact",  model.getContact())
 			.append("salutation", model.getSalutation().toString())
 			.append("invitationState", model.getInvitationState().toString())
@@ -97,10 +100,6 @@ public class MongodbServiceProvider
 			.append("createdBy", model.getCreatedBy())
 			.append("modifiedAt", model.getModifiedAt())
 			.append("modifiedBy", model.getModifiedBy());
-		// for backwards compatibility reason
-		if (model.getInternalComment() != null) {
-			_doc.append("internalComment", model.getInternalComment());
-		}
 		if (withId == true) {
 			_doc.append("_id", new ObjectId(model.getId()));
 		}
@@ -153,6 +152,7 @@ public class MongodbServiceProvider
 	 */
 	@Override
 	public InvitationModel create(
+		HttpServletRequest request,
 		InvitationModel model) 
 	throws DuplicateException, ValidationException {
 		logger.info("create(" + PrettyPrinter.prettyPrintAsJSON(model) + ")");
@@ -186,9 +186,9 @@ public class MongodbServiceProvider
 		// set modification / creation values
 		Date _date = new Date();
 		model.setCreatedAt(_date);
-		model.setCreatedBy(getPrincipal());
+		model.setCreatedBy(getPrincipal(request));
 		model.setModifiedAt(_date);
-		model.setModifiedBy(getPrincipal());
+		model.setModifiedBy(getPrincipal(request));
 		
 		create(convert(model, true));
 		logger.info("create(" + PrettyPrinter.prettyPrintAsJSON(model) + ")");
@@ -216,6 +216,7 @@ public class MongodbServiceProvider
 	 */
 	@Override
 	public InvitationModel update(
+		HttpServletRequest request,
 		String id, 
 		InvitationModel invitation
 	) throws NotFoundException, ValidationException {
@@ -255,12 +256,12 @@ public class MongodbServiceProvider
 		_invitation.setComment(invitation.getComment());
 		_invitation.setInternalComment(invitation.getInternalComment());
 		_invitation.setModifiedAt(new Date());
-		_invitation.setModifiedBy(getPrincipal());
+		_invitation.setModifiedBy(getPrincipal(request));
 		update(id, convert(_invitation, true));
 		logger.info("update(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_invitation));
 		return _invitation;
 	}
-
+	
 	/* (non-Javadoc)
 	 * @see org.opentdc.invitations.ServiceProvider#delete(java.lang.String)
 	 */
@@ -346,6 +347,7 @@ public class MongodbServiceProvider
 	 */
 	@Override
 	public void sendMessage(
+			HttpServletRequest request,
 			String id) 
 			throws NotFoundException, InternalServerErrorException {
 		logger.info("sendMessage(" + id + ")");
@@ -359,14 +361,15 @@ public class MongodbServiceProvider
 		logger.info("sent email message to " + _model.getEmail());
 		_model.setId(null);
 		_model.setInvitationState(InvitationState.SENT);
-		update(id, _model);
+		update(request, id, _model);
 	}
 
 	/* (non-Javadoc)
 	 * @see org.opentdc.invitations.ServiceProvider#sendAllMessages()
 	 */
 	@Override
-	public void sendAllMessages() 
+	public void sendAllMessages(
+			HttpServletRequest request) 
 			throws InternalServerErrorException {
 		logger.info("sendAllMessages()");
 		InvitationModel _model = null;
@@ -382,7 +385,7 @@ public class MongodbServiceProvider
 			logger.info("sent email message to " + _model.getEmail());
 			_model.setId(null);
 			_model.setInvitationState(InvitationState.SENT);
-			update(_id, _model);
+			update(request, _id, _model);
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException _ex) {
@@ -411,7 +414,7 @@ public class MongodbServiceProvider
 		_invitation.setInvitationState(InvitationState.REGISTERED);
 		_invitation.setComment(comment);
 		_invitation.setModifiedAt(new Date());
-		_invitation.setModifiedBy(getPrincipal());
+		_invitation.setModifiedBy(id);
 		update(id, convert(_invitation, true));
 		logger.info("register(" + id + ", " + comment + ") -> " + PrettyPrinter.prettyPrintAsJSON(_invitation));
 	}
@@ -432,11 +435,12 @@ public class MongodbServiceProvider
 		_invitation.setInvitationState(InvitationState.EXCUSED);
 		_invitation.setComment(comment);
 		_invitation.setModifiedAt(new Date());
-		_invitation.setModifiedBy(getPrincipal());
+		_invitation.setModifiedBy(id);
 		update(id, convert(_invitation, true));
 		logger.info("deregister(" + id + ", " + comment + ") -> " + PrettyPrinter.prettyPrintAsJSON(_invitation));
 	}
 	
+	/*
 	private InvitationState convertInvitationState(org.opentdc.events.InvitationState estate) {
 		InvitationState _istate = null;
 		switch (estate) {
@@ -460,10 +464,12 @@ public class MongodbServiceProvider
 		}
 		return _isal;
 	}
+	*/
 
 	/* (non-Javadoc)
 	 * @see org.opentdc.invitations.ServiceProvider#migrate()
 	 */
+	/*
 	@Override
 	public void migrate() 
 			throws InternalServerErrorException {
@@ -491,12 +497,14 @@ public class MongodbServiceProvider
 		}
 		
 	}
+	*/
 
 	/* (non-Javadoc)
 	 * @see org.opentdc.invitations.ServiceProvider#statistics()
 	 */
+	/*
 	@Override
-	public Properties statistics() {
+	public PropertiesModel statistics() {
 		int _countEntries = 0;
 		int _countInitial = 0;
 		int _countSent = 0;
@@ -529,6 +537,9 @@ public class MongodbServiceProvider
 		_data.setProperty("excused", new Integer(_countExcused).toString());
 		_data.setProperty("comments", new Integer(_countComments).toString());
 		_data.setProperty("internalComments", new Integer(_countInternalComments).toString());
-		return _data;
+		PropertiesModel _props = new PropertiesModel();
+		_props.setProperties(_data);
+		return _props;
 	}
+	*/
 }
