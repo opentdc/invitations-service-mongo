@@ -23,7 +23,6 @@
  */
 package org.opentdc.invitations.mongo;
 
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
