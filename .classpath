@@ -11,9 +11,9 @@
 	<classpathentry combineaccessrules="false" kind="src" path="/opentdc 1 ~ services-generic (jre-1.7)"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/opentdc Thirdparty ~ Google GSON (jre-1.7)"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/opentdc 1 ~ services-mongo (jre-1.7)"/>
-	<classpathentry kind="lib" path="/Users/bruno/proj/opentdc/opt/mongodb/jre-1.7/mongo-java-driver/lib/mongo-java-driver-3.0.2.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/opentdc Thirdparty ~ Freemarker (jre-1.7)"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/opentdc 1 ~ events-service (jre-1.7)"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/opentdc 1 ~ events-service-mongo (jre-1.7)"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/opentdc Thirdparty ~ MongoDB (jre-1.7)"/>
 	<classpathentry kind="output" path="build/jre-1.7/eclipse"/>
 </classpath>
