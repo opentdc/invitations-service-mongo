@@ -18,7 +18,7 @@
 		<fileset dir="../${java.build.platform}/events-service-mongo/lib/" includes="*.jar" />
 		<fileset dir="../opt/google/${java.build.platform}/gson/lib/" includes="*.jar" />
 		<fileset dir="../opt/mongodb/${java.build.platform}/mongodb/lib/" includes="*.jar" />
-		<fileset dir="../opt/freemarker/${java.build.platform}/freemarker/lib" includes="*.jar" />		
+		<fileset dir="../opt/freemarker/${java.build.platform}/freemarker/lib/" includes="*.jar" />		
 	</path>
 
 	<target name="javac" description="Compile java source">
