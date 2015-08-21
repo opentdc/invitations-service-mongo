@@ -132,8 +132,8 @@ public class MongodbServiceProvider
 	 */
 	@Override
 	public ArrayList<InvitationModel> list(
-		String queryType,
 		String query,
+		String queryType,
 		int position,
 		int size) {
 		List<Document> _docs = list(position, size);
