@@ -41,6 +41,7 @@ import org.opentdc.invitations.InvitationModel;
 import org.opentdc.invitations.InvitationState;
 import org.opentdc.invitations.SalutationType;
 import org.opentdc.invitations.ServiceProvider;
+import org.opentdc.service.ServiceUtil;
 // import org.opentdc.service.PropertiesModel;
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
@@ -185,9 +186,9 @@ public class MongodbServiceProvider
 		// set modification / creation values
 		Date _date = new Date();
 		model.setCreatedAt(_date);
-		model.setCreatedBy(getPrincipal(request));
+		model.setCreatedBy(ServiceUtil.getPrincipal(request));
 		model.setModifiedAt(_date);
-		model.setModifiedBy(getPrincipal(request));
+		model.setModifiedBy(ServiceUtil.getPrincipal(request));
 		
 		create(convert(model, true));
 		logger.info("create(" + PrettyPrinter.prettyPrintAsJSON(model) + ")");
@@ -255,7 +256,7 @@ public class MongodbServiceProvider
 		_invitation.setComment(invitation.getComment());
 		_invitation.setInternalComment(invitation.getInternalComment());
 		_invitation.setModifiedAt(new Date());
-		_invitation.setModifiedBy(getPrincipal(request));
+		_invitation.setModifiedBy(ServiceUtil.getPrincipal(request));
 		update(id, convert(_invitation, true));
 		logger.info("update(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_invitation));
 		return _invitation;
